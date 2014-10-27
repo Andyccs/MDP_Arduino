@@ -182,19 +182,21 @@ void loop(){
 //     //return movement(front_count*grid, normalRPM+normalRPM*(double)power, false, false);
 //     return movement(front_count*grid, 250, false, false);
 // }
+int prev_error; 
+int integral;
 
 int moveForward(int distance){
     int multiplier;
     switch(distance){
     //    case 1: multiplier = 1162; break;
-        case 1: multiplier = 1111; break;
-        case 2: multiplier = 1145; break;
-        case 3: multiplier = 1157; break;
-        case 4: multiplier = 1170; break;
-        case 10: multiplier = 1185; break;
-        case 11: multiplier = 1182; break;
-        case 12: multiplier = 1182; break;
-        default: multiplier = 1190; break;
+        case 1: multiplier = 550; break;
+        case 2: multiplier = 550; break;
+        case 3: multiplier = 550; break;
+        case 4: multiplier = 550; break;
+        case 10: multiplier = 550; break;
+        case 11: multiplier = 550; break;
+        case 12: multiplier = 550; break;
+        default: multiplier = 550; break;
     }
     int target_Distance = multiplier * distance;
 
@@ -206,29 +208,39 @@ int moveForward(int distance){
     we.getCountsAndResetM1();
     we.getCountsAndResetM2();
 
+    prev_error = 0;
+    integral = 0;
+
     while(1)
     {
-        LeftPosition = we.getCountsM1();    //hardcoded
+        LeftPosition = we.getCountsM1();
         RightPosition = we.getCountsM2();
 
         //Acceleration
-        if(LeftPosition <=100)
+        if(LeftPosition <=200)
         {
-            pwm1 = 100;
-            pwm2 = 100;
+            pwm1 = 200;
+            pwm2 = 200;
         } 
-        else if(LeftPosition >100 && LeftPosition <=300)
+        else if(LeftPosition <=300)
         {
             pwm1 = LeftPosition;
             pwm2 = RightPosition;
+
+            if(pwm1>280){
+                pwm1 = 280;
+            }
+            if(pwm2>320){
+                pwm2 = 320;
+            }
         } 
         else 
         {
-            pwm1 = 300;
-            pwm2 = 300;
+            pwm1 = 280;
+            pwm2 = 320;
         }   
 
-        if(LeftPosition >= target_Distance-70)
+        if(LeftPosition >= target_Distance)
         {
             moveStop();
             break;
@@ -240,25 +252,22 @@ int moveForward(int distance){
         
         if(distance == 1)
         {
-            if(LeftPosition >= (target_Distance-70-200) && 
-                LeftPosition <= (target_Distance+100))
+            if(LeftPosition >= (target_Distance-150))
             {
-                pwm1 = target_Distance-70-LeftPosition+100;
-                pwm2 = target_Distance-70-LeftPosition+100;
+                pwm1 = target_Distance-LeftPosition;
+                pwm2 = target_Distance-LeftPosition;
             }
         }
-
-
 
         output = pidControlForward(we.getCountsM1(),we.getCountsM2());
         // md.setSpeeds(pwm1-output+left_offset, pwm2+output);
         // md.setSpeeds(pwm1-output, pwm2+output);
-        md.setSpeeds(pwm1-output, pwm2-output);
+        md.setSpeeds(pwm1+output, pwm2-output);
 
         debug(" pwm1: ");   
-        debug(pwm1);
+        debug(pwm1-output);
         debug(", pwm2: ");   
-        debug(pwm2);
+        debug(pwm2+output);
         debug(", output: ");   
         debug(output);
         debug(", motor1_encoder: ");   
@@ -270,27 +279,80 @@ int moveForward(int distance){
   
 }
 
+
+
+// int pidControlForward(int LeftPosition, int RightPosition){
+//     int error;
+//     float derivative,output;
+
+//     //0.75
+//     float Kp = 0.75;  //0-0.1
+
+//     //1.65
+//     float Kd = 1.65;  //1-2
+
+//     //0.65
+//     float Ki = 0.75;  //0.5-1
+
+//     error = LeftPosition - RightPosition;
+//     integral += error;
+//     derivative = (error - prev_error);
+//     output = Kp*error + Ki * integral + Kd * derivative;
+//     prev_error = error;
+
+//     debug(", error: ");
+//     debug(error);
+//     debug(", integral: ");
+//     debug(integral);
+//     debug(", derivative: ");
+//     debug(derivative);
+
+
+//     return output;
+// }
+
 int pidControlForward(int LeftPosition, int RightPosition){
-    int error,prev_error,pwm1=255,pwm2=255;
-    float integral,derivative,output;
+    // float error;
+    // int prev_error,pwm1=255,pwm2=255;
+    // float integral,derivative,output;
+    // //0.75
+    // float Kp = 0.75;  //0-0.1
 
-    //0.75
-    float Kp = 0.75;  //0-0.1
+    // //1.65
+    // float Kd = 1.65;  //1-2
 
-    //1.65
-    float Kd = 1.65;  //1-2
+    // //0.65
+    // float Ki = 0;  //0.5-1
 
-    //0.65
-    float Ki = 0.75;  //0.5-1
+    // error = LeftPosition - RightPosition;
+    // integral += error;
+    // derivative = (error - prev_error);
+    // output = Kp*error + Ki * integral + Kd * derivative;
+    // prev_error = error;
 
-    error = LeftPosition - RightPosition;
-    integral += error;
-    derivative = (error - prev_error);
-    output = Kp*error + Ki * integral + Kd * derivative;
-    prev_error = error;
+    // //Serial.println(error);
 
-    pwm1=output;
-    return pwm1;
+    // debug(", error: ");
+    // debug(error);
+    // debug(", integral: ");
+    // debug(integral);
+    // debug(", derivative: ");
+    // debug(derivative);
+
+    // pwm1=output;
+    // return pwm1;
+
+    float error = LeftPosition - RightPosition;
+//    if(LeftPosition<100.0){
+//        return (int) error * 1.9;
+//    }
+//    else if(LeftPosition<250.0){
+//        return (int) error * 1.6;
+//    }
+//    else{
+//        return (int) error * 1.3;
+//    }
+    return error*1.00;
 }
 
 // void moveOneGrid()
