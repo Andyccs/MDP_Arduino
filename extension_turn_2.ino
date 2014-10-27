@@ -62,8 +62,6 @@ int motor1_b = 2;
 int motor2_a = 8;
 int motor2_b = 7;
 
-
-
 boolean fp = false;
 
 /*=================|| Serial Read ||==================*/
@@ -116,35 +114,34 @@ void setup()
     Serial.begin(9600);
 }
 
-
 void loop(){
     
     char command = Comp();
     if(command == '1')
     {
-        moveForward(1,250);
+        moveForward(1);
         //moveOneGrid();
         
         IRFunction();
     }
     else if(command == '2')
     {
-        moveForward(2,250);
+        moveForward(2);
         IRFunction();
     }
     else if(command == '3')
     {
-        moveForward(3,250);
+        moveForward(3);
         IRFunction();
     }
     else if(command == '4')
     {
-        moveForward(4,250);
+        moveForward(4);
         IRFunction();
     }
     else if(command == '5')
     {
-        moveForward(5,250);
+        moveForward(5);
         IRFunction();
     }
     else if(command == 'R')
@@ -176,122 +173,232 @@ void loop(){
     }
 }
 
-int moveForward(int grid, int power){
-    debug("rpm normal ");
-    debug(normalRPM);
-    debug(" power");
-    debug(power);
-    debugNL();
-    //return movement(front_count*grid, normalRPM+normalRPM*(double)power, false, false);
-    return movement(front_count*grid, 250, false, false);
-}
+// int moveForward(int grid, int power){
+//     debug("rpm normal ");
+//     debug(normalRPM);
+//     debug(" power");
+//     debug(power);
+//     debugNL();
+//     //return movement(front_count*grid, normalRPM+normalRPM*(double)power, false, false);
+//     return movement(front_count*grid, 250, false, false);
+// }
 
-void moveOneGrid()
-{
-    int motorPower = 200;
-    int m1Power = motorPower-20;//motorPower-2.90;
-    int m2Power = motorPower;
+int moveForward(int distance){
+    int multiplier;
+    switch(distance){
+    //    case 1: multiplier = 1162; break;
+        case 1: multiplier = 1111; break;
+        case 2: multiplier = 1145; break;
+        case 3: multiplier = 1157; break;
+        case 4: multiplier = 1170; break;
+        case 10: multiplier = 1185; break;
+        case 11: multiplier = 1182; break;
+        case 12: multiplier = 1182; break;
+        default: multiplier = 1190; break;
+    }
+    int target_Distance = multiplier * distance;
 
-    int gap = 7;
-    int error = 0;
-    int aggkp = 2;
-    int goodDistance = 470;
-    int totalDistance = 0;
-    int errorOffsetM1 = 0;
-    int errorOffsetM2 = 0;
-    bool slowState = false;
-
-    const int smallErrorPower = 5;
-    const int midErrorPower = 7;
-    const int bigErrorPower = 9;
+    int count=0;
+    int pwm1=300, pwm2=300; 
+    int output=0;
+    int LeftPosition,RightPosition;
 
     we.getCountsAndResetM1();
     we.getCountsAndResetM2();
 
-    while(true){
+    while(1)
+    {
+        LeftPosition = we.getCountsM1();    //hardcoded
+        RightPosition = we.getCountsM2();
 
-        if(goodDistance-we.getCountsM1()<5)
-        {  
-            debug("done: ");
-            debug(goodDistance-we.getCountsM1());
-            debugNL();
+        //Acceleration
+        if(LeftPosition <=100)
+        {
+            pwm1 = 100;
+            pwm2 = 100;
+        } 
+        else if(LeftPosition >100 && LeftPosition <=300)
+        {
+            pwm1 = LeftPosition;
+            pwm2 = RightPosition;
+        } 
+        else 
+        {
+            pwm1 = 300;
+            pwm2 = 300;
+        }   
+
+        if(LeftPosition >= target_Distance-70)
+        {
+            moveStop();
             break;
         }
-        else
+        debug("LeftPosition: ");   
+        debug(LeftPosition);
+        debug(", target_Distance: ");   
+        debug(target_Distance);
+        
+        if(distance == 1)
         {
-            md.setM1Speed(m1Power);
-            md.setM2Speed(m2Power);
-            debug("fast motion, ");
+            if(LeftPosition >= (target_Distance-70-200) && 
+                LeftPosition <= (target_Distance+100))
+            {
+                pwm1 = target_Distance-70-LeftPosition+100;
+                pwm2 = target_Distance-70-LeftPosition+100;
+            }
         }
 
-        debug("m1Power: ");
-        debug(m1Power);
-        debug(", m2Power: ");
-        debug(m2Power);
-        debug(", countM1: ");
-        debug(we.getCountsM1());
-        debug(", countM2: ");
-        debug(we.getCountsM2());
-        debug(", errorOffsetM1: ");
-        debug(errorOffsetM1);
-        debug(", errorOffsetM2: ");
-        debug(errorOffsetM2);
 
-        //determine the error after deducting from the 2 motor
-        // error = (we.getCountsM1()-errorOffsetM1) - (we.getCountsM2()-errorOffsetM2);
-        error = we.getCountsM1() - we.getCountsM2();
-        debug(", error: ");
-        debug(error);
+
+        output = pidControlForward(we.getCountsM1(),we.getCountsM2());
+        // md.setSpeeds(pwm1-output+left_offset, pwm2+output);
+        // md.setSpeeds(pwm1-output, pwm2+output);
+        md.setSpeeds(pwm1-output, pwm2-output);
+
+        debug(" pwm1: ");   
+        debug(pwm1);
+        debug(", pwm2: ");   
+        debug(pwm2);
+        debug(", output: ");   
+        debug(output);
+        debug(", motor1_encoder: ");   
+        debug(we.getCountsM1());
+        debug(", motor2_encoder: ");   
+        debug(we.getCountsM2());
+        debugNL();
+    }
+  
+}
+
+int pidControlForward(int LeftPosition, int RightPosition){
+    int error,prev_error,pwm1=255,pwm2=255;
+    float integral,derivative,output;
+
+    //0.75
+    float Kp = 0.75;  //0-0.1
+
+    //1.65
+    float Kd = 1.65;  //1-2
+
+    //0.65
+    float Ki = 0.75;  //0.5-1
+
+    error = LeftPosition - RightPosition;
+    integral += error;
+    derivative = (error - prev_error);
+    output = Kp*error + Ki * integral + Kd * derivative;
+    prev_error = error;
+
+    pwm1=output;
+    return pwm1;
+}
+
+// void moveOneGrid()
+// {
+//     int motorPower = 200;
+//     int m1Power = motorPower-20;//motorPower-2.90;
+//     int m2Power = motorPower;
+
+//     int gap = 7;
+//     int error = 0;
+//     int aggkp = 2;
+//     int goodDistance = 470;
+//     int totalDistance = 0;
+//     int errorOffsetM1 = 0;
+//     int errorOffsetM2 = 0;
+//     bool slowState = false;
+
+//     const int smallErrorPower = 5;
+//     const int midErrorPower = 7;
+//     const int bigErrorPower = 9;
+
+//     we.getCountsAndResetM1();
+//     we.getCountsAndResetM2();
+
+//     while(true){
+
+//         if(goodDistance-we.getCountsM1()<5)
+//         {  
+//             debug("done: ");
+//             debug(goodDistance-we.getCountsM1());
+//             debugNL();
+//             break;
+//         }
+//         else
+//         {
+//             md.setM1Speed(m1Power);
+//             md.setM2Speed(m2Power);
+//             debug("fast motion, ");
+//         }
+
+//         debug("m1Power: ");
+//         debug(m1Power);
+//         debug(", m2Power: ");
+//         debug(m2Power);
+//         debug(", countM1: ");
+//         debug(we.getCountsM1());
+//         debug(", countM2: ");
+//         debug(we.getCountsM2());
+//         debug(", errorOffsetM1: ");
+//         debug(errorOffsetM1);
+//         debug(", errorOffsetM2: ");
+//         debug(errorOffsetM2);
+
+//         //determine the error after deducting from the 2 motor
+//         // error = (we.getCountsM1()-errorOffsetM1) - (we.getCountsM2()-errorOffsetM2);
+//         error = we.getCountsM1() - we.getCountsM2();
+//         debug(", error: ");
+//         debug(error);
         
 
 
-        if(abs(error) > 3)
-        {
-            if(error<0)
-            {
-                debug(", addM2 ");
-                if(we.getCountsM1()-we.getCountsM2()<=10)
-                {
-                    debug(" small error");
-                    m2Power+=smallErrorPower;
-                }
-                else if(we.getCountsM1()-we.getCountsM2()<=20)
-                {
-                    debug(" medium error");
-                    m2Power+=midErrorPower;
-                }
-                else
-                {
-                    debug(" big error");
-                    m2Power+=bigErrorPower;
-                }
-            }
-            else if(error>0)
-            {
-                debug(", addM1 ");
-                if(we.getCountsM2()-we.getCountsM1()<=10)
-                {
-                    debug(" small error");
-                    m1Power+=smallErrorPower;
-                }
-                else if(we.getCountsM2()-we.getCountsM1()<=20)
-                {
-                    debug(" medium error");
-                    m1Power+=midErrorPower;
-                }
-                else
-                {
-                    debug(" big error");
-                    m1Power+=bigErrorPower;
-                }
-            }
-        }
-        debugNL();
+//         if(abs(error) > 3)
+//         {
+//             if(error<0)
+//             {
+//                 debug(", addM2 ");
+//                 if(we.getCountsM1()-we.getCountsM2()<=10)
+//                 {
+//                     debug(" small error");
+//                     m2Power+=smallErrorPower;
+//                 }
+//                 else if(we.getCountsM1()-we.getCountsM2()<=20)
+//                 {
+//                     debug(" medium error");
+//                     m2Power+=midErrorPower;
+//                 }
+//                 else
+//                 {
+//                     debug(" big error");
+//                     m2Power+=bigErrorPower;
+//                 }
+//             }
+//             else if(error>0)
+//             {
+//                 debug(", addM1 ");
+//                 if(we.getCountsM2()-we.getCountsM1()<=10)
+//                 {
+//                     debug(" small error");
+//                     m1Power+=smallErrorPower;
+//                 }
+//                 else if(we.getCountsM2()-we.getCountsM1()<=20)
+//                 {
+//                     debug(" medium error");
+//                     m1Power+=midErrorPower;
+//                 }
+//                 else
+//                 {
+//                     debug(" big error");
+//                     m1Power+=bigErrorPower;
+//                 }
+//             }
+//         }
+//         debugNL();
 
-    }
+//     }
 
-    moveStop();
-}
+//     moveStop();
+// }
 
 
 int moveBackward(int grid, int power){
@@ -456,17 +563,6 @@ void IRFunction()
     // float sensor5 = getIR(1,5);
     float sensor5 = getFrontSensor();
 
-    // Serial.print("1,");
-    // Serial.print(sensor5);
-    // Serial.print(",");
-    // Serial.print(sensor1);
-    // Serial.print(",");
-    // Serial.print(sensor2);
-    // Serial.print(",");
-    // Serial.print(sensor3);
-    // Serial.print(",");
-    // Serial.println(sensor4); 
-
     Serial.print("1,");
     Serial.print(sensor5);
     Serial.print(",");
@@ -621,7 +717,7 @@ int adjustDistance()
     debug(sensor3);
     debugNL();
     while(sensor1>20.0 && sensor2>20.0 && sensor3>20.0){
-        moveForward(1,250);
+        moveForward(1);
         sensor1 = getFrontLeftSensor();
         sensor2 = getFrontRightSensor();
         sensor3 = getFrontSensor();
@@ -728,7 +824,7 @@ float getRightSensor()
     return getIR(5,4);
 }
 //For debugging purpose
-bool DEBUG = false;
+bool DEBUG = true;
 void debug(String message)
 {
     if(DEBUG)
@@ -768,120 +864,3 @@ void debugNL(float message){
 }
 
 
-// int moveForward(int distance){
-
-//   motor1_encoder=0;
-//   motor2_encoder=0;  
-
-//   int multiplier;
-//   switch(distance){
-// //    case 1: multiplier = 1162; break;
-//     case 1: multiplier = 1111; break;
-//     case 2: multiplier = 1145; break;
-//     case 3: multiplier = 1157; break;
-//     case 4: multiplier = 1170; break;
-//     case 10: multiplier = 1185; break;
-//     case 11: multiplier = 1182; break;
-//     case 12: multiplier = 1182; break;
-    
-//     default: multiplier = 1190; break;
-  
-//   }
-//   int target_Distance = multiplier * distance;
-
-//   ///////////////////////
-//   // int target_Distance = ((2249/(6*3.142))*(distance*10));
-//   //  int target_Distance = 1192.9768*distance;
-//   // int target_Distance = 1150*distance;
-//   //int target_Distance = 1168.5*distance;
-//   // int left_offset=10.8;  //halfly charged white powerbank done
-
-
-//   // int left_offset=265;    //fully charged 
-//   // if (distance == 1){
-//   //   //left_offset = 25.5;  32.5
-//   //   //Serial.println("entered");
-//   //   left_offset = 40;
-//   // }
-//   /////////////////////
-
-//   int count=0;
-//   int pwm1=300, pwm2=300; 
-//   int output=0;
-//   int LeftPosition,RightPosition;
-
-
-
-//   while(1){
-//     LeftPosition = -motor1_encoder;    //hardcoded
-//     RightPosition = -motor2_encoder;  
-
-//     //Acceleration
-//     if(LeftPosition <=100){
-//       pwm1 = 100;
-//       pwm2 = 100;
-//     } 
-//     else if(LeftPosition >100 && LeftPosition <=300){
-//       pwm1 = LeftPosition;
-//       pwm2 = RightPosition;
-//     } 
-//     else {
-//       pwm1 = 300;
-//       pwm2 = 300;
-//     }   
-
-//     if(LeftPosition >= target_Distance-70){
-//       md.setBrakes(400, 400);
-//       delay(100);
-//       md.setBrakes(0, 0);
-//       break;
-//     }
-
-//     if(distance == 1){
-
-//       if(LeftPosition >= (target_Distance-70-200) && LeftPosition <= (target_Distance+100)){
-//         pwm1 = target_Distance-70-LeftPosition+100;
-//         pwm2 = target_Distance-70-LeftPosition+100;
-//       }
-//     }
-
-
-
-//     output = pidControlForward(motor1_encoder,motor2_encoder);
-//     // md.setSpeeds(pwm1-output+left_offset, pwm2+output);
-//     md.setSpeeds(pwm1-output, pwm2+output);
-
-//     //   Serial.print(" motor1_encoder: ");   Serial.print(motor1_encoder);
-//     //   Serial.print(" motor2_encoder: ");   Serial.print(motor2_encoder);
-//     //   Serial.print("\n");
-
-//   }
-//  // delay(500);
-//   if(getSensor)
-//     exportSensors();
-  
-// }
-
-// int pidControlForward(int LeftPosition, int RightPosition){
-//   int error,prev_error,pwm1=255,pwm2=255;
-//   float integral,derivative,output;
-//   //0.75
-//   float Kp = 0.75;  //0-0.1
-  
-//   //1.65
-//   float Kd = 1.65;  //1-2
-  
-//   //0.65
-//   float Ki = 0.75;  //0.5-1
-
-//   error = LeftPosition - RightPosition;
-//   integral += error;
-//   derivative = (error - prev_error);
-//   output = Kp*error + Ki * integral + Kd * derivative;
-//   prev_error = error;
-  
-//   //Serial.println(error);
-
-//   pwm1=output;
-//   return pwm1;
-// }
