@@ -27,8 +27,8 @@ double turn3Deg = (((((PI/2.0) * (0.3/2.0)) / (PI*wheelDiameter)) * perRevolutio
 //double errorRight = 0.999;
 //double errorRight = 0.977;
 //double errorLeft = 0.999;
-double errorRight = 1.025;//1.0185; //0.980;
-double errorLeft = 1.005;
+double errorRight = 1.030;//1.0185; //0.980;
+double errorLeft = 1.010; //
 double normalRPM = 40.0;
 int pidLoopTime = 100;  //Determines how often the PID algorithm evaluates. The default is 200mS.
 int motorPower = 250;  //Set motor power/speed
@@ -239,6 +239,7 @@ int moveForward(int distance){
             pwm1 = 280;
             pwm2 = 320;
         }   
+        // 280 and 320 are some magic numbers.
 
         if(LeftPosition >= target_Distance)
         {
