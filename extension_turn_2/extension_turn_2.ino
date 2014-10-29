@@ -3,98 +3,55 @@
 #include <Average.h>
 #include <PID_v1.h>
 
-/*====================|| Motors ||====================*/
 PololuWheelEncoders we;
 DualVNH5019MotorShield md;
 
-// added by xinzi on 23 Oct start
-int front_count = 568; // 562
-double motor_ajust = 0.975; //0.965;;//0.965;//0.975;
-// added by xinzi on 23 Oct end
+//this value is used to decrease the left motor speed
+//it is used when turn left and right
+//do not change the value
+const double leftMotorAdjust = 0.975;
 
-//int perRevolutionCount = 1092; //1484;//2245; //1024;
-int perRevolutionCount = 1097;//1092; 
-/*
-int perRevolutionCountLeft = 1120; 
-int perRevolutionCountRight = 1300; 
-*/
-int wheelDiameter = 6;
-int oneGrid10cm = (10 / (PI * wheelDiameter)) * perRevolutionCount;  //550 for 10cm
-double robotDiameter = 17.0;  //17.0;
-double turn90Count = (((((PI/2.0) * (robotDiameter/2.0)) / (PI*wheelDiameter)) * perRevolutionCount));
-double turn1Count = turn90Count/90;
-double turn3Deg = (((((PI/2.0) * (0.3/2.0)) / (PI*wheelDiameter)) * perRevolutionCount));
-//double errorRight = 0.999;
-//double errorRight = 0.977;
-//double errorLeft = 0.999;
-double errorRight = 1.030;//1.0185; //0.980;
-double errorLeft = 1.010; //
-double normalRPM = 40.0;
-int pidLoopTime = 100;  //Determines how often the PID algorithm evaluates. The default is 200mS.
-int motorPower = 250;  //Set motor power/speed
-int motor2Offset = 0;
-int motorDegPower = 25;  //Power use to adjust
-int gribToMove = 1;  //Deafult is 1 for exploration and will change accordingly during fastest path
+//number of revolution need to turn left and right
+//do not change the value
+const int perRevolutionCount = 1097;//1092; 
 
+//calculate for turn1Count
+//do not change these values
+const int wheelDiameter = 6;
+const double robotDiameter = 17.0;  //17.0;
+const double turn90Count = (((((PI/2.0) * (robotDiameter/2.0)) / (PI*wheelDiameter)) * perRevolutionCount));
+const double turn1Count = turn90Count/90;
 
-int const URPWM = 6; // PWM Output 0－25000US，Every 50US represent 1cm
-int const URTRIG = 12; // PWM trigger pin
-volatile unsigned int Distance=0;
-/*====================================================*/
+//this value can be used to increase or decrease 
+//the rpm when turn right
+//change to higher value for more rotation
+//change to lower value for less rotation
+const double errorRight = 1.035;//1.0185; //0.980;
 
+//this value can be used to increase or decrease 
+//the rpm when turn left
+//change to higher value for more rotation
+//change to lower value for less rotation
+const double errorLeft = 1.010; //
 
-  
+//Determines how often the PID algorithm evaluates. The default is 200mS.
+//do not change the value
+const int pidLoopTime = 100;  
 
+//For debugging purpose
+//set it to true to debug
+//set it to false for production
+const bool DEBUG = false;
 
-
-
-boolean start = true;
-boolean done = false;
-boolean range = false;
-
-int time = 180000; //3mins
-
-int currentTime = 0;
-int startTime = 0;
-
-int motor1_a = 4;
-int motor1_b = 2;
-int motor2_a = 8;
-int motor2_b = 7;
-
-boolean fp = false;
-
-/*=================|| Serial Read ||==================*/
-char inData[20];  // Allocate some space for the string
-char inChar = -1;  // Where to store the character read
-byte index = 0;  // Index into array; where to store the character
+//pin number for motor
+//do not change
+const int motor1_a = 4;
+const int motor1_b = 2;
+const int motor2_a = 8;
+const int motor2_b = 7;
 
 //Serial Read String Function
 char Comp(){
-    // while(Serial.available() > 0)
-    // {  // Don't read unless you know there is data
-    //     if(index < 19)
-    //     {  // One less than the size of the array   
-    //         inChar = Serial.read(); // Read a character
-    //         inData[index] = inChar; // Store it
-    //         index++; // Increment where to write next
-    //         inData[index] = '\0'; // Null terminate the string
-    //     }
-    // }
-    // if(strcmp(inData, This) == 0)
-    // {
-    //     for (int i = 0; i < 19; i++)
-    //     {
-    //         inData[i] = 0;
-    //     }
-    //     index = 0;
-    //     return(1);
-    // }
-    // else
-    // {
-    //     return(0);
-    // }
-
     if(Serial.available()>0){
         return Serial.read();
     }else{
@@ -102,26 +59,19 @@ char Comp(){
     }
 }
 
-String dir, dis;
-int dist;
-
 void setup()
 {
     md.init();  
     we.init(11,13,3,5);
-    //PWM_Mode_Setup();
   
     Serial.begin(9600);
 }
 
 void loop(){
-    
     char command = Comp();
     if(command == '1')
     {
-        moveForward(1);
-        //moveOneGrid();
-        
+        moveForward(1);        
         IRFunction();
     }
     else if(command == '2')
@@ -144,6 +94,11 @@ void loop(){
         moveForward(5);
         IRFunction();
     }
+    else if(command == '0')
+    {
+        moveStop();
+        IRFunction();
+    }
     else if(command == 'R')
     {
         turnRight(90,150);
@@ -152,11 +107,6 @@ void loop(){
     else if(command == 'L')
     {
         turnLeft(90,150);
-        IRFunction();
-    }
-    else if(command == '0')
-    {
-        moveStop();
         IRFunction();
     }
     else if (command == 'V')
@@ -173,22 +123,9 @@ void loop(){
     }
 }
 
-// int moveForward(int grid, int power){
-//     debug("rpm normal ");
-//     debug(normalRPM);
-//     debug(" power");
-//     debug(power);
-//     debugNL();
-//     //return movement(front_count*grid, normalRPM+normalRPM*(double)power, false, false);
-//     return movement(front_count*grid, 250, false, false);
-// }
-int prev_error; 
-int integral;
-
 int moveForward(int distance){
     int multiplier;
     switch(distance){
-    //    case 1: multiplier = 1162; break;
         case 1: multiplier = 550; break;
         case 2: multiplier = 550; break;
         case 3: multiplier = 550; break;
@@ -208,9 +145,6 @@ int moveForward(int distance){
     we.getCountsAndResetM1();
     we.getCountsAndResetM2();
 
-    prev_error = 0;
-    integral = 0;
-
     while(1)
     {
         LeftPosition = we.getCountsM1();
@@ -227,17 +161,19 @@ int moveForward(int distance){
             pwm1 = LeftPosition;
             pwm2 = RightPosition;
 
-            if(pwm1>280){
-                pwm1 = 280;
+            // if(pwm1>280){
+            if(pwm1>300){
+                pwm1 = 300;
             }
-            if(pwm2>320){
-                pwm2 = 320;
+            // if(pwm2>320){
+            if(pwm2>300){
+                pwm2 = 300;
             }
         } 
         else 
         {
-            pwm1 = 280;
-            pwm2 = 320;
+            pwm1 = 300;//280;
+            pwm2 = 300;//320;
         }   
         // 280 and 320 are some magic numbers.
 
@@ -261,8 +197,6 @@ int moveForward(int distance){
         }
 
         output = pidControlForward(we.getCountsM1(),we.getCountsM2());
-        // md.setSpeeds(pwm1-output+left_offset, pwm2+output);
-        // md.setSpeeds(pwm1-output, pwm2+output);
         md.setSpeeds(pwm1+output, pwm2-output);
 
         debug(" pwm1: ");   
@@ -280,213 +214,18 @@ int moveForward(int distance){
   
 }
 
-
-
-// int pidControlForward(int LeftPosition, int RightPosition){
-//     int error;
-//     float derivative,output;
-
-//     //0.75
-//     float Kp = 0.75;  //0-0.1
-
-//     //1.65
-//     float Kd = 1.65;  //1-2
-
-//     //0.65
-//     float Ki = 0.75;  //0.5-1
-
-//     error = LeftPosition - RightPosition;
-//     integral += error;
-//     derivative = (error - prev_error);
-//     output = Kp*error + Ki * integral + Kd * derivative;
-//     prev_error = error;
-
-//     debug(", error: ");
-//     debug(error);
-//     debug(", integral: ");
-//     debug(integral);
-//     debug(", derivative: ");
-//     debug(derivative);
-
-
-//     return output;
-// }
-
 int pidControlForward(int LeftPosition, int RightPosition){
-    // float error;
-    // int prev_error,pwm1=255,pwm2=255;
-    // float integral,derivative,output;
-    // //0.75
-    // float Kp = 0.75;  //0-0.1
-
-    // //1.65
-    // float Kd = 1.65;  //1-2
-
-    // //0.65
-    // float Ki = 0;  //0.5-1
-
-    // error = LeftPosition - RightPosition;
-    // integral += error;
-    // derivative = (error - prev_error);
-    // output = Kp*error + Ki * integral + Kd * derivative;
-    // prev_error = error;
-
-    // //Serial.println(error);
-
-    // debug(", error: ");
-    // debug(error);
-    // debug(", integral: ");
-    // debug(integral);
-    // debug(", derivative: ");
-    // debug(derivative);
-
-    // pwm1=output;
-    // return pwm1;
-
     float error = LeftPosition - RightPosition;
-//    if(LeftPosition<100.0){
-//        return (int) error * 1.9;
-//    }
-//    else if(LeftPosition<250.0){
-//        return (int) error * 1.6;
-//    }
-//    else{
-//        return (int) error * 1.3;
-//    }
     return error*1.00;
 }
 
-// void moveOneGrid()
-// {
-//     int motorPower = 200;
-//     int m1Power = motorPower-20;//motorPower-2.90;
-//     int m2Power = motorPower;
-
-//     int gap = 7;
-//     int error = 0;
-//     int aggkp = 2;
-//     int goodDistance = 470;
-//     int totalDistance = 0;
-//     int errorOffsetM1 = 0;
-//     int errorOffsetM2 = 0;
-//     bool slowState = false;
-
-//     const int smallErrorPower = 5;
-//     const int midErrorPower = 7;
-//     const int bigErrorPower = 9;
-
-//     we.getCountsAndResetM1();
-//     we.getCountsAndResetM2();
-
-//     while(true){
-
-//         if(goodDistance-we.getCountsM1()<5)
-//         {  
-//             debug("done: ");
-//             debug(goodDistance-we.getCountsM1());
-//             debugNL();
-//             break;
-//         }
-//         else
-//         {
-//             md.setM1Speed(m1Power);
-//             md.setM2Speed(m2Power);
-//             debug("fast motion, ");
-//         }
-
-//         debug("m1Power: ");
-//         debug(m1Power);
-//         debug(", m2Power: ");
-//         debug(m2Power);
-//         debug(", countM1: ");
-//         debug(we.getCountsM1());
-//         debug(", countM2: ");
-//         debug(we.getCountsM2());
-//         debug(", errorOffsetM1: ");
-//         debug(errorOffsetM1);
-//         debug(", errorOffsetM2: ");
-//         debug(errorOffsetM2);
-
-//         //determine the error after deducting from the 2 motor
-//         // error = (we.getCountsM1()-errorOffsetM1) - (we.getCountsM2()-errorOffsetM2);
-//         error = we.getCountsM1() - we.getCountsM2();
-//         debug(", error: ");
-//         debug(error);
-        
-
-
-//         if(abs(error) > 3)
-//         {
-//             if(error<0)
-//             {
-//                 debug(", addM2 ");
-//                 if(we.getCountsM1()-we.getCountsM2()<=10)
-//                 {
-//                     debug(" small error");
-//                     m2Power+=smallErrorPower;
-//                 }
-//                 else if(we.getCountsM1()-we.getCountsM2()<=20)
-//                 {
-//                     debug(" medium error");
-//                     m2Power+=midErrorPower;
-//                 }
-//                 else
-//                 {
-//                     debug(" big error");
-//                     m2Power+=bigErrorPower;
-//                 }
-//             }
-//             else if(error>0)
-//             {
-//                 debug(", addM1 ");
-//                 if(we.getCountsM2()-we.getCountsM1()<=10)
-//                 {
-//                     debug(" small error");
-//                     m1Power+=smallErrorPower;
-//                 }
-//                 else if(we.getCountsM2()-we.getCountsM1()<=20)
-//                 {
-//                     debug(" medium error");
-//                     m1Power+=midErrorPower;
-//                 }
-//                 else
-//                 {
-//                     debug(" big error");
-//                     m1Power+=bigErrorPower;
-//                 }
-//             }
-//         }
-//         debugNL();
-
-//     }
-
-//     moveStop();
-// }
-
-
-int moveBackward(int grid, int power){
-    return movement(front_count*grid, normalRPM+normalRPM*(double)power, true, true);
-}
-
 int turnLeft(int degree, int power){
-    // oneGrid10cm = (10 / (PI * wheelDiameter)) * perRevolutionCountLeft;
-    //return movement((int)(turn1Count*degree*errorLeft), (normalRPM+normalRPM*(double)power), true, false);
     return movement((int)(turn1Count*degree*errorLeft), 250, true, false);
 }
 
 int turnRight(int degree, int power){
-    // oneGrid10cm = (10 / (PI * wheelDiameter)) * perRevolutionCountRight;
-    //return movement((int)(turn1Count*degree*errorRight), (normalRPM+normalRPM*(double)power), false, true);
     return movement((int)(turn1Count*degree*errorRight), 250, false, true);
 }
-
-// int turn3DegLeft(int degPower){
-//     return movement((int)(turn3Deg*90*errorLeft), (normalRPM+normalRPM*(double)degPower), true, false);
-// }
-
-// int turn3DegRight(int degPower){
-//     return movement((int)(turn3Deg*90*errorRight), (normalRPM+normalRPM*(double)degPower), false, true);
-// }
 
 //Control the movement of the motor
 int movement(int counts, double rpm, bool left, bool right){
@@ -497,19 +236,8 @@ int movement(int counts, double rpm, bool left, bool right){
     int m1Counts = 0, m2Counts = 0;
     int m1LastCounts = 0, m2LastCounts = 0;
 
-    double inputM1 = 0.0, outputM1 = 0.0, setpointM1 = motor_ajust*rpm;
+    double inputM1 = 0.0, outputM1 = 0.0, setpointM1 = leftMotorAdjust*rpm;
     double inputM2 = 0.0, outputM2 = 0.0, setpointM2 = rpm;
-
-    // PID m1PID(&inputM1, &outputM1, &setpointM1, 0.150, 0.002, 0, DIRECT);  //Right 0.0325
-    // PID m2PID(&inputM2, &outputM2, &setpointM2, 0.999, 0.900, 0, DIRECT);  //Left
-  
-    // // if(counts = oneGrid10cm)
-    // if(left==false && right==false)
-    // {
-    //     // m1PID.SetTunings(0.150, 0.002, 0);
-    //     m1PID.SetTunings(0.900, 0.900, 0);
-    //     m2PID.SetTunings(0.900, 0.900, 0);
-    // }
   
     PID m1PID(&inputM1, &outputM1, &setpointM1, 0.999, 0.900, 0, DIRECT);  //Right 0.0325
     PID m2PID(&inputM2, &outputM2, &setpointM2, 0.999, 0.900, 0, DIRECT);  //Left
@@ -578,8 +306,6 @@ void moveStop(){
     analogWrite(10,1);
     delay(100);
 }
-
-
 
 void resetEncoderCount()
 {
@@ -886,8 +612,7 @@ float getRightSensor()
 {
     return getIR(5,4);
 }
-//For debugging purpose
-bool DEBUG = true;
+
 void debug(String message)
 {
     if(DEBUG)
