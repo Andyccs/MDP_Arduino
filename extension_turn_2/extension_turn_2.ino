@@ -13,26 +13,26 @@ const double leftMotorAdjust = 0.975;
 
 //number of revolution need to turn left and right
 //do not change the value
-const int perRevolutionCount = 1097;//1092; 
+const int perRevolutionCount = 1097;
 
 //calculate for turn1Count
 //do not change these values
 const int wheelDiameter = 6;
-const double robotDiameter = 17.0;  //17.0;
+const double robotDiameter = 17.0; 
 const double turn90Count = (((((PI/2.0) * (robotDiameter/2.0)) / (PI*wheelDiameter)) * perRevolutionCount));
 const double turn1Count = turn90Count/90;
 
-//this value can be used to increase or decrease 
+//this value can be used tmo increase or decrease 
 //the rpm when turn right
 //change to higher value for more rotation
 //change to lower value for less rotation
-const double errorRight = 1.035;//1.0185; //0.980;
+const double errorRight = 1.0225;
 
 //this value can be used to increase or decrease 
 //the rpm when turn left
 //change to higher value for more rotation
 //change to lower value for less rotation
-const double errorLeft = 1.010; //
+const double errorLeft = 0.9900;
 
 //Determines how often the PID algorithm evaluates. The default is 200mS.
 //do not change the value
@@ -94,6 +94,26 @@ void loop(){
         moveForward(5);
         IRFunction();
     }
+    else if(command == '6')
+    {
+        moveForward(6);
+        IRFunction();
+    }
+    else if(command == '7')
+    {
+        moveForward(7);
+        IRFunction();
+    }
+    else if(command == '8')
+    {
+        moveForward(8);
+        IRFunction();
+    }
+    else if(command == '9')
+    {
+        moveForward(9);
+        IRFunction();
+    }
     else if(command == '0')
     {
         moveStop();
@@ -121,19 +141,28 @@ void loop(){
         calibrate();
         IRFunction();
     }
+    else if(command == 'D')
+    {
+        adjustDistance();
+        // adjustDistance();
+        // calibrate();
+        // IRFunction();
+    }
 }
 
 int moveForward(int distance){
     int multiplier;
     switch(distance){
-        case 1: multiplier = 550; break;
-        case 2: multiplier = 550; break;
-        case 3: multiplier = 550; break;
-        case 4: multiplier = 550; break;
-        case 10: multiplier = 550; break;
-        case 11: multiplier = 550; break;
-        case 12: multiplier = 550; break;
-        default: multiplier = 550; break;
+        case 1: multiplier = 570; break;
+        case 2: multiplier = 580; break;
+        case 3: multiplier = 590; break;
+        case 4: multiplier = 590; break;
+        case 5: multiplier = 590; break;
+        case 6: multiplier = 590; break;
+        case 7: multiplier = 590; break;
+        case 8: multiplier = 590; break;
+        case 9: multiplier = 590; break;
+        default: multiplier = 590; break;
     }
     int target_Distance = multiplier * distance;
 
@@ -161,11 +190,11 @@ int moveForward(int distance){
             pwm1 = LeftPosition;
             pwm2 = RightPosition;
 
-            // if(pwm1>280){
+            // if(pwm1>295){
             if(pwm1>300){
                 pwm1 = 300;
             }
-            // if(pwm2>320){
+            // if(pwm2>315){
             if(pwm2>300){
                 pwm2 = 300;
             }
@@ -336,6 +365,7 @@ float getIR(int irPin , int sensorNo)
 
 void IRFunction()
 {
+    float frontSensorOffset = -2.671777;
     //front right sensor
     float sensor1 = getIR(2,1);
     
@@ -349,8 +379,14 @@ void IRFunction()
     float sensor4 = getIR(5,4);
 
     //front sensor
-    // float sensor5 = getIR(1,5);
-    float sensor5 = getFrontSensor();
+    //do some trick to trick algorithm
+    //because the sensor is moving backward now
+    
+    // float sensor5 = getFrontSensor();
+    float sensor5 = getFrontSensor() + frontSensorOffset;
+    if(sensor5<7.00){
+        sensor5 = 7.00;
+    }
 
     Serial.print("1,");
     Serial.print(sensor5);
@@ -380,19 +416,11 @@ void makeCalibrationDecision()
     float adjustDis = 16.00;
     float sensor1 = getFrontLeftSensor();
     float sensor2 = getFrontRightSensor();
-    float sensor3 = getFrontSensor();
+    // float sensor3 = getFrontSensor();
     if(sensor1 <= adjustDis && sensor2 <= adjustDis)
     {
         decision = 0;
     }
-    // else if(sensor1 <= adjustDis && sensor3 <= adjustDis)
-    // {
-    //     decision = 1;
-    // }
-    // else if(sensor2 <= adjustDis && sensor3 <= adjustDis)
-    // {
-    //     decision = 2;
-    // }
     else
     {
         decision = -1;
@@ -407,7 +435,7 @@ void calibrate()
     float error = 0.0;
     float adjustDis = 16.00;
     float frontSensorOffset = 0.49;
-    float frontLeftSensorOffset = 0.1;
+    float frontLeftSensorOffset = -0.05;//0.22;
 
     makeCalibrationDecision();
     debug("Decision: ");
@@ -417,21 +445,10 @@ void calibrate()
     {
         return;
     }
-    else if(decision==0)
-    {
-        sensor1 = getFrontLeftSensor()+frontLeftSensorOffset;
-        sensor2 = getFrontRightSensor();
-    }
-    else if(decision==1)
-    {
-        sensor1 = getFrontLeftSensor();
-        sensor2 = getFrontSensor()+frontSensorOffset;
-    }
-    else if(decision==2)
-    {
-        sensor1 = getFrontSensor()+frontSensorOffset;
-        sensor2 = getFrontRightSensor();
-    }
+
+    sensor1 = getFrontLeftSensor()+frontLeftSensorOffset;
+    sensor2 = getFrontRightSensor();
+
     debug("FrontLeftSensor: ");
     debug(sensor1);
     debug(" FrontRightSensor: ");
@@ -467,22 +484,9 @@ void calibrate()
             break;
         }
 
-        //get correct sensor information according to decision
-        if(decision==0)
-        {
-            sensor1 = getFrontLeftSensor()+frontLeftSensorOffset;
-            sensor2 = getFrontRightSensor();
-        }
-        else if(decision==1)
-        {
-            sensor1 = getFrontLeftSensor();
-            sensor2 = getFrontSensor()+frontSensorOffset;
-        }
-        else if(decision==2)
-        {
-            sensor1 = getFrontSensor()+frontSensorOffset;
-            sensor2 = getFrontRightSensor();
-        }
+        sensor1 = getFrontLeftSensor()+frontLeftSensorOffset;
+        sensor2 = getFrontRightSensor();
+
     }
 }
 
@@ -490,59 +494,39 @@ void calibrate()
 int adjustDistance()
 {
     int motorPower = 80;
-    float disAdjust = 10.0;
-    float goodDistance = 7.4;
-    float limit = 0.05;
-
-    float sensor1 = getFrontLeftSensor();
-    float sensor2 = getFrontRightSensor();
+    float goodDistance = 9.78;
+    float limit = 0.10;
     float sensor3 = getFrontSensor();
     
-    debug("sensor1: ");
-    debug(sensor1);
-    debug(", sensor2: ");
-    debug(sensor2);
     debug(", sensor3: ");
     debug(sensor3);
     debugNL();
-    while(sensor1>20.0 && sensor2>20.0 && sensor3>20.0){
+    while(sensor3>20.0){   
         moveForward(1);
-        sensor1 = getFrontLeftSensor();
-        sensor2 = getFrontRightSensor();
         sensor3 = getFrontSensor();
-        debug("sensor1: ");
-        debug(sensor1);
-        debug(", sensor2: ");
-        debug(sensor2);
         debug(", sensor3: ");
         debug(sensor3);
         debugNL();
     }
-    for(int i =0; i < 200; i++)
+    for(int j=0; j < 100; j++)
     {
-        //if the distance is nice
-        if(abs(sensor1 - goodDistance)<limit || 
-            abs(sensor2 - goodDistance)<limit ||
-            abs(sensor3 + 0.27 - goodDistance)<limit)
+        debug("sensor3: ");
+        debug(sensor3);
+        debug(", ");
+        if(abs(sensor3 - goodDistance)<limit)
         {
             break;
         }
-        //check if far
-        else if(sensor1>goodDistance && sensor2>goodDistance && sensor3>goodDistance)
+        else if(sensor3<goodDistance)
         {
-            //move forward
-            md.setSpeeds(motorPower-8,motorPower);
-            debugNL("Move forward");
-        }
-        //check if near
-        else
-        {
-            //move backward
-            md.setSpeeds(-1*(motorPower-8),-1*motorPower);
+            md.setSpeeds(-1*motorPower,-1*motorPower);
             debugNL("Move backward");
         }
-        sensor1 = getFrontLeftSensor();
-        sensor2 = getFrontRightSensor();
+        else
+        {
+            md.setSpeeds(motorPower,motorPower);
+            debugNL("Move forward");
+        }
         sensor3 = getFrontSensor();
     }
     moveStop();
