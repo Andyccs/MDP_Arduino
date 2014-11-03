@@ -38,6 +38,28 @@ const double errorLeft = 0.99;
 //do not change the value
 const int pidLoopTime = 100;  
 
+//this is the optimal sensor value that 
+//we want when we allign distance
+//change it to the reading of front sensor
+//when the robot is in good distance
+const int GOOD_DISTANCE = 520;
+
+//this number will be used to see when to 
+//slow down allign distance from far to near
+//can change, should be abit larger than GOOD_DISTANCE
+const int FRONT_TOLERANCE = 547;
+
+//this number will be used to see when to 
+//slow down allign distance from near to far
+//can change, should be abit smaller than GOOD_DISTANCE
+const int BACK_TOLERANCE = 494;
+
+//this constant will be used when the robot move forward
+//changing this can make the robot move straight
+//plus to turn right 
+//minus to turn left
+const int MOVE_FORWARD_LEFT_RIGHT_OFFSET = 8;
+
 //For debugging purpose
 //set it to true to debug
 //set it to false for production
@@ -179,11 +201,9 @@ int moveForward(int distance){
     int output=0;
     int LeftPosition,RightPosition;
     
-    //plus to right
-    //minus to left
-    int offset = 8;
-    int MAX_POWER_LEFT = 300+offset;
-    int MAX_POWER_RIGHT = 300-offset;
+
+    int MAX_POWER_LEFT = 300+MOVE_FORWARD_LEFT_RIGHT_OFFSET;
+    int MAX_POWER_RIGHT = 300-MOVE_FORWARD_LEFT_RIGHT_OFFSET;
 
     we.getCountsAndResetM1();
     we.getCountsAndResetM2();
@@ -204,28 +224,23 @@ int moveForward(int distance){
             pwm1 = LeftPosition;
             pwm2 = RightPosition;
 
-            // if(pwm1>295){
             if(pwm1>MAX_POWER_LEFT){
                 pwm1 = MAX_POWER_LEFT;
             }
-            // if(pwm2>315){
             if(pwm2>MAX_POWER_RIGHT){
                 pwm2 = MAX_POWER_RIGHT;
             }
         } 
         else 
         {
-            pwm1 = MAX_POWER_LEFT;//280;
-            pwm2 = MAX_POWER_RIGHT;//320;
+            pwm1 = MAX_POWER_LEFT;
+            pwm2 = MAX_POWER_RIGHT;
         }   
-        // 280 and 320 are some magic numbers.
 
         if(LeftPosition >= target_Distance)
         {
             md.setBrakes(400,400);
             delay(100);
-            // md.setBrakes(0,400);
-            // delay(100);
             md.setBrakes(0,0);
             break;
         }
@@ -233,15 +248,6 @@ int moveForward(int distance){
         debug(LeftPosition);
         debug(", target_Distance: ");   
         debug(target_Distance);
-        
-        // if(distance == 1)
-        // {
-        //     if(LeftPosition >= (target_Distance-150))
-        //     {
-        //         pwm1 = target_Distance-LeftPosition;
-        //         pwm2 = target_Distance-LeftPosition;
-        //     }
-        // }
 
         output = pidControlForward(we.getCountsM1(),we.getCountsM2());
         
@@ -404,10 +410,6 @@ void IRFunction()
 
     //right sensor
     float sensor4 = getIR(5,4);
-
-    //front sensor
-    //do some trick to trick algorithm
-    //because the sensor is moving backward now
     
     // float sensor5 = getFrontSensor();
     float sensor5 = getIR(1,5);
@@ -426,10 +428,10 @@ void IRFunction()
 
 void calibrate()
 {
-    float limit = 5;
-    float sensor1 = 0.0;
-    float sensor2 = 0.0;
-    float error = 0.0;
+    int limit = 7;
+    int sensor1 = 0.0;
+    int sensor2 = 0.0;
+    int error = 0.0;
 
     sensor1 = getFrontLeftSensor();
     sensor2 = getFrontRightSensor();
@@ -476,18 +478,14 @@ void brake(){
 
 int adjustDistance()
 {
-    int motorPower = 100;
-    int goodDistance = 520;
-    int limit = 7;
+    const int motorPower = 100;
+    const int limit = 7;
+
     int sensor3 = getFrontSensor();
-    
+
     debug("frontSensorFeedback: ");
     debug(sensor3);
     debugNL();
-
-    int forwardbackwardCounter = 0;
-    bool prevForward = false;
-    bool moveSmall = false;
 
     while(sensor3<270){   
         moveForward(1);
@@ -501,12 +499,12 @@ int adjustDistance()
         debug("frontSensorFeedback: ");
         debug(sensor3);
         debug(", ");
-        if(abs(sensor3 - goodDistance)<limit)
+        if(abs(sensor3 - GOOD_DISTANCE)<limit)
         {
             break;
         }
-        else if(sensor3>494-20 && sensor3<547+20){
-            if(sensor3>goodDistance){
+        else if(sensor3>BACK_TOLERANCE-20 && sensor3<FRONT_TOLERANCE+20){
+            if(sensor3>GOOD_DISTANCE){
                 debugNL("Move Backward Less");
                 moveAbit(false,true);
             }else{
@@ -514,7 +512,7 @@ int adjustDistance()
                 moveAbit(true,true);
             }
         }
-        else if(sensor3>goodDistance)
+        else if(sensor3>GOOD_DISTANCE)
         {
             debugNL("Move Backward More");
             moveAbit(false,false);
@@ -561,10 +559,9 @@ void moveAbit(bool forward,bool less)
 void moveLeft()
 {
     int motorPower = 100;
-    int revolutionNeeded = 20; //arduino:1400 assessment:1185
-    int totalRevolution = 0;
-    int m1Power = (-1 * motorPower);
-    int m2Power = motorPower - 8;
+    int revolutionNeeded = 20;
+    int m1Power = -motorPower;
+    int m2Power = motorPower;
     resetEncoderCount();
 
     while((abs(we.getCountsM1()) < revolutionNeeded))
@@ -578,10 +575,9 @@ void moveLeft()
 void moveRight()
 {
     int motorPower = 100;
-    int revolutionNeeded = 20; //Arduino:1310 assessment:1170
-    int totalRevolution = 0; 
+    int revolutionNeeded = 20;
     int m1Power = motorPower;
-    int m2Power = ( -1 * (motorPower + 1));
+    int m2Power = -motorPower;
     resetEncoderCount();
 
     while((abs(we.getCountsM1()) < revolutionNeeded))
