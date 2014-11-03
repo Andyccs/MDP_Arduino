@@ -26,13 +26,13 @@ const double turn1Count = turn90Count/90;
 //the rpm when turn right
 //change to higher value for more rotation
 //change to lower value for less rotation
-const double errorRight = 1.0225;
+const double errorRight = 1.058;
 
 //this value can be used to increase or decrease 
 //the rpm when turn left
 //change to higher value for more rotation
 //change to lower value for less rotation
-const double errorLeft = 0.9900;
+const double errorLeft = 0.99;
 
 //Determines how often the PID algorithm evaluates. The default is 200mS.
 //do not change the value
@@ -41,7 +41,7 @@ const int pidLoopTime = 100;
 //For debugging purpose
 //set it to true to debug
 //set it to false for production
-const bool DEBUG = false;
+const bool DEBUG = true;
 
 //pin number for motor
 //do not change
@@ -135,7 +135,7 @@ void loop(){
     }
     else if(command == 'C')
     {
-        adjustDistance();
+        
         calibrate();
         adjustDistance();
         calibrate();
@@ -144,25 +144,33 @@ void loop(){
     else if(command == 'D')
     {
         adjustDistance();
-        // adjustDistance();
-        // calibrate();
-        // IRFunction();
+        IRFunction();
     }
+    else if(command == 'A')
+    {
+        calibrate();
+        IRFunction();
+    }
+    else if(command == 'F')
+    {
+       feedBackFunction();
+    }
+    
 }
 
 int moveForward(int distance){
     int multiplier;
     switch(distance){
-        case 1: multiplier = 570; break;
-        case 2: multiplier = 580; break;
-        case 3: multiplier = 590; break;
-        case 4: multiplier = 590; break;
-        case 5: multiplier = 590; break;
-        case 6: multiplier = 590; break;
-        case 7: multiplier = 590; break;
-        case 8: multiplier = 590; break;
-        case 9: multiplier = 590; break;
-        default: multiplier = 590; break;
+        case 1: multiplier = 500; break;
+        case 2: multiplier = 488; break;
+        case 3: multiplier = 522; break;
+        case 4: multiplier = 558; break;
+        case 5: multiplier = 558; break;
+        case 6: multiplier = 558; break;
+        case 7: multiplier = 558; break;
+        case 8: multiplier = 558; break;
+        case 9: multiplier = 558; break;
+        default: multiplier = 558; break;
     }
     int target_Distance = multiplier * distance;
 
@@ -170,6 +178,12 @@ int moveForward(int distance){
     int pwm1=300, pwm2=300; 
     int output=0;
     int LeftPosition,RightPosition;
+    
+    //plus to right
+    //minus to left
+    int offset = 8;
+    int MAX_POWER_LEFT = 300+offset;
+    int MAX_POWER_RIGHT = 300-offset;
 
     we.getCountsAndResetM1();
     we.getCountsAndResetM2();
@@ -191,24 +205,28 @@ int moveForward(int distance){
             pwm2 = RightPosition;
 
             // if(pwm1>295){
-            if(pwm1>300){
-                pwm1 = 300;
+            if(pwm1>MAX_POWER_LEFT){
+                pwm1 = MAX_POWER_LEFT;
             }
             // if(pwm2>315){
-            if(pwm2>300){
-                pwm2 = 300;
+            if(pwm2>MAX_POWER_RIGHT){
+                pwm2 = MAX_POWER_RIGHT;
             }
         } 
         else 
         {
-            pwm1 = 300;//280;
-            pwm2 = 300;//320;
+            pwm1 = MAX_POWER_LEFT;//280;
+            pwm2 = MAX_POWER_RIGHT;//320;
         }   
         // 280 and 320 are some magic numbers.
 
         if(LeftPosition >= target_Distance)
         {
-            moveStop();
+            md.setBrakes(400,400);
+            delay(100);
+            // md.setBrakes(0,400);
+            // delay(100);
+            md.setBrakes(0,0);
             break;
         }
         debug("LeftPosition: ");   
@@ -216,22 +234,32 @@ int moveForward(int distance){
         debug(", target_Distance: ");   
         debug(target_Distance);
         
-        if(distance == 1)
-        {
-            if(LeftPosition >= (target_Distance-150))
-            {
-                pwm1 = target_Distance-LeftPosition;
-                pwm2 = target_Distance-LeftPosition;
-            }
-        }
+        // if(distance == 1)
+        // {
+        //     if(LeftPosition >= (target_Distance-150))
+        //     {
+        //         pwm1 = target_Distance-LeftPosition;
+        //         pwm2 = target_Distance-LeftPosition;
+        //     }
+        // }
 
         output = pidControlForward(we.getCountsM1(),we.getCountsM2());
-        md.setSpeeds(pwm1+output, pwm2-output);
+        
+        pwm1 = pwm1+output;
+        pwm2 = pwm2-output;
+        if(pwm1<0){
+            pwm1 = 0;
+        }
+        if(pwm2<0){
+            pwm2 = 0;
+        }
+
+        md.setSpeeds(pwm1, pwm2);
 
         debug(" pwm1: ");   
-        debug(pwm1-output);
+        debug(pwm1);
         debug(", pwm2: ");   
-        debug(pwm2+output);
+        debug(pwm2);
         debug(", output: ");   
         debug(output);
         debug(", motor1_encoder: ");   
@@ -245,7 +273,7 @@ int moveForward(int distance){
 
 int pidControlForward(int LeftPosition, int RightPosition){
     float error = LeftPosition - RightPosition;
-    return error*1.00;
+    return error;
 }
 
 int turnLeft(int degree, int power){
@@ -365,7 +393,6 @@ float getIR(int irPin , int sensorNo)
 
 void IRFunction()
 {
-    float frontSensorOffset = -2.671777;
     //front right sensor
     float sensor1 = getIR(2,1);
     
@@ -383,10 +410,7 @@ void IRFunction()
     //because the sensor is moving backward now
     
     // float sensor5 = getFrontSensor();
-    float sensor5 = getFrontSensor() + frontSensorOffset;
-    if(sensor5<7.00){
-        sensor5 = 7.00;
-    }
+    float sensor5 = getIR(1,5);
 
     Serial.print("1,");
     Serial.print(sensor5);
@@ -400,53 +424,14 @@ void IRFunction()
     Serial.println(sensor4); 
 } 
 
-
-//this variable is use to determine which two
-//sensors to be used for calibration
-//must call the function makeCalibrationDecision()
-//before using it
-//-1: cannot calibrate
-//0: use front left and front right
-//1: use front left and front
-//2: use front and front right
-int decision = -1;
-
-void makeCalibrationDecision()
-{
-    float adjustDis = 16.00;
-    float sensor1 = getFrontLeftSensor();
-    float sensor2 = getFrontRightSensor();
-    // float sensor3 = getFrontSensor();
-    if(sensor1 <= adjustDis && sensor2 <= adjustDis)
-    {
-        decision = 0;
-    }
-    else
-    {
-        decision = -1;
-    }
-}
-
 void calibrate()
 {
-    float limit = 0.05;
+    float limit = 5;
     float sensor1 = 0.0;
     float sensor2 = 0.0;
     float error = 0.0;
-    float adjustDis = 16.00;
-    float frontSensorOffset = 0.49;
-    float frontLeftSensorOffset = -0.05;//0.22;
 
-    makeCalibrationDecision();
-    debug("Decision: ");
-    debug(decision);
-    debugNL();
-    if(decision==-1)
-    {
-        return;
-    }
-
-    sensor1 = getFrontLeftSensor()+frontLeftSensorOffset;
+    sensor1 = getFrontLeftSensor();
     sensor2 = getFrontRightSensor();
 
     debug("FrontLeftSensor: ");
@@ -464,137 +449,221 @@ void calibrate()
         if(abs(error)<limit)
         {
             debugNL("break here");
-            moveStop();
             break;
         }
         if(error < 0)
         {
             debugNL("Move left");
-            moveLeft();
-        }
-        else if(error < 20)
-        {
-            debugNL("Move right");
             moveRight();
         }
         else
         {
-            debugNL("cannot calibrate, big error");
-            moveStop();
-            break;
+            debugNL("Move right");
+            moveLeft();
         }
-
-        sensor1 = getFrontLeftSensor()+frontLeftSensorOffset;
+        sensor1 = getFrontLeftSensor();
         sensor2 = getFrontRightSensor();
 
     }
+    brake();
 }
 
+void brake(){
+    md.setBrakes(400, 400);
+    delay(50);
+    md.setBrakes(0, 0);
+}
 
 int adjustDistance()
 {
-    int motorPower = 80;
-    float goodDistance = 9.78;
-    float limit = 0.10;
-    float sensor3 = getFrontSensor();
+    int motorPower = 100;
+    int goodDistance = 520;
+    int limit = 7;
+    int sensor3 = getFrontSensor();
     
-    debug(", sensor3: ");
+    debug("frontSensorFeedback: ");
     debug(sensor3);
     debugNL();
-    while(sensor3>20.0){   
+
+    int forwardbackwardCounter = 0;
+    bool prevForward = false;
+    bool moveSmall = false;
+
+    while(sensor3<270){   
         moveForward(1);
         sensor3 = getFrontSensor();
-        debug(", sensor3: ");
+        debug("frontSensorFeedback: ");
         debug(sensor3);
         debugNL();
     }
     for(int j=0; j < 100; j++)
     {
-        debug("sensor3: ");
+        debug("frontSensorFeedback: ");
         debug(sensor3);
         debug(", ");
         if(abs(sensor3 - goodDistance)<limit)
         {
             break;
         }
-        else if(sensor3<goodDistance)
+        else if(sensor3>494-20 && sensor3<547+20){
+            if(sensor3>goodDistance){
+                debugNL("Move Backward Less");
+                moveAbit(false,true);
+            }else{
+                debugNL("Move Forward Less");
+                moveAbit(true,true);
+            }
+        }
+        else if(sensor3>goodDistance)
         {
-            md.setSpeeds(-1*motorPower,-1*motorPower);
-            debugNL("Move backward");
+            debugNL("Move Backward More");
+            moveAbit(false,false);
         }
         else
         {
-            md.setSpeeds(motorPower,motorPower);
-            debugNL("Move forward");
+            debugNL("Move Forward More");
+            moveAbit(true,false);
         }
+
         sensor3 = getFrontSensor();
     }
-    moveStop();
+    brake();
     resetEncoderCount();
 
     return 1;
 }
 
+void moveAbit(bool forward,bool less)
+{
+    int motorPower = 100;
+    
+    if(!forward){
+        motorPower = -motorPower; 
+    }
+    
+    int m1Power = motorPower+2;
+    int m2Power = motorPower-2;
+    resetEncoderCount();
+
+    md.setSpeeds(m1Power, m2Power);
+    if(less){
+        while((abs(we.getCountsM1()) < 3))
+        {
+            md.setSpeeds(m1Power, m2Power);
+        }
+        brake();
+    }else{
+        md.setSpeeds(m1Power, m2Power);
+    }
+    resetEncoderCount();
+}
+
 void moveLeft()
 {
-    int motorPower = 80;
-    int revolutionNeeded = 0; //arduino:1400 assessment:1185
+    int motorPower = 100;
+    int revolutionNeeded = 20; //arduino:1400 assessment:1185
     int totalRevolution = 0;
     int m1Power = (-1 * motorPower);
     int m2Power = motorPower - 8;
-    revolutionNeeded = 10;
     resetEncoderCount();
 
-    while((abs(we.getCountsM1()) < revolutionNeeded) && (Serial.available() <= 0))
+    while((abs(we.getCountsM1()) < revolutionNeeded))
     {
         md.setSpeeds(m1Power, m2Power);
     }
-    md.setBrakes(m1Power,m2Power);
+    brake();
     resetEncoderCount();
 }
 
 void moveRight()
 {
-    int motorPower = 80;
-    int revolutionNeeded = 0; //Arduino:1310 assessment:1170
+    int motorPower = 100;
+    int revolutionNeeded = 20; //Arduino:1310 assessment:1170
     int totalRevolution = 0; 
     int m1Power = motorPower;
     int m2Power = ( -1 * (motorPower + 1));
-    revolutionNeeded = 10;
     resetEncoderCount();
 
-    while((abs(we.getCountsM1()) < revolutionNeeded) && (Serial.available() <= 0))
+    while((abs(we.getCountsM1()) < revolutionNeeded))
     {
         md.setSpeeds(m1Power, m2Power);
     }
-    md.setBrakes(m1Power,m2Power);
+    brake();
     resetEncoderCount(); 
 }
 
+void insertionsort(int array[], int length){
+  int i,j;
+  int temp;
+  for(i = 1; i < length; i++){
+    for(j = i; j > 0; j--){
+      if(array[j] < array[j-1]){
+        temp = array[j];
+        array[j] = array[j-1];
+        array[j-1] = temp;
+      }
+      else
+        break;
+    }
+  }
+}
+
+int getAverageFeedback(int pin){
+    int sensors[30];
+    int sum = 0;
+    int average = 0;
+
+    for(int i=0;i<30;i++){
+        sensors[i] = analogRead(pin);
+    }
+
+    insertionsort(sensors,30);
+
+    for(int i = 7; i < 22; i++){
+        sum = sum + sensors[i];
+    }
+    average = sum/15;
+
+    //sort
+    return average;
+}
 //utility function
 float getFrontSensor()
 {
-    return getIR(1,5);
+    return getAverageFeedback(1);
 }
 
 float getFrontLeftSensor()
 {
-    return getIR(3,2);
+    return getAverageFeedback(3);
 }
 
 float getFrontRightSensor()
 {
-    return getIR(2,1);
+    return getAverageFeedback(2);
 }
 
 float getLeftSensor()
 {
-    return getIR(4,3);
+    return getAverageFeedback(4);
 }
 
 float getRightSensor()
 {
-    return getIR(5,4);
+    return getAverageFeedback(5);
+}
+
+void feedBackFunction(){
+    debug(getFrontSensor());
+    debug(", ");
+    debug(getFrontLeftSensor());
+    debug(", ");
+    debug(getFrontRightSensor());
+    debug(", ");
+    debug(getLeftSensor());
+    debug(", ");
+    debug(getRightSensor());
+    debugNL();
 }
 
 void debug(String message)
