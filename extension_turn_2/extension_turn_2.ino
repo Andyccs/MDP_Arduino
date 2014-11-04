@@ -96,8 +96,40 @@ void setup()
     Serial.begin(9600);
 }
 
+int readStatus = 0;
+char readVariable = 0;
+int readValue = 0;
+
 void loop(){
     char command = serialRead();
+    if (command == '\0') return;
+    if (readStatus > 0) {
+        if (readStatus == 1)
+        {
+            readVariable = command;
+            readStatus = 2;
+            readValue = 0;
+        }
+        else if (readStatus == 2)
+        {
+            if (command == 'S')
+            {
+                // done reading
+                debug("Try to set constant ");
+                debug(readVariable);
+                debug(" to ");
+                debug(readValue);
+                debugNL();
+            }
+            else
+            {
+                readValue *= 10;
+                readValue += command = '0';
+            }
+        }
+
+        return;
+    }
     if(command == '1')
     {
         moveForward(1);        
@@ -191,25 +223,7 @@ void loop(){
     }
     else if(command == 'S')
     {
-        // set multiplier
-        char distance = serialRead();
-        if (distance=='\0')
-        {
-            return;
-        }
-        distance -= '0';
-        char tmp;
-        int val = 0;
-        while((tmp=serialRead()) && (tmp>='0') && (tmp<='9'))
-        {
-            val*=10;
-            val+=tmp-'0';
-        }
-        debug("Try to set distance multiplier ");
-        debug(distance);
-        debug(" to ");
-        debug(val);
-        debugNL();
+        readStatus = 1;
     }
     
 }
