@@ -138,6 +138,7 @@ void loop(){
                 debug(readValue);
                 debugNL();
                 readStatus = 0;
+                IRFunction();
             }
             else
             {
