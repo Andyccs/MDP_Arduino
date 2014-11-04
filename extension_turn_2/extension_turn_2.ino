@@ -60,7 +60,7 @@ const int MOVE_FORWARD_LEFT_RIGHT_OFFSET = 10;
 //For debugging purpose
 //set it to true to debug
 //set it to false for production
-const bool DEBUG = true;
+const bool DEBUG = false;
 
 //below are numbers to be set during initialization
 //sensor raw read data offset
@@ -132,11 +132,11 @@ void loop(){
                     initMultiplier[readVariable - '1'] = readValue;
                 }
                 // done reading
-                debug("Try to set constant ");
-                debug(readVariable);
-                debug(" to ");
-                debug(readValue);
-                debugNL();
+                Serial.print("Try to set constant ");
+                Serial.print(readVariable);
+                Serial.print(" to ");
+                Serial.print(readValue);
+                Serial.println();
                 readStatus = 0;
             }
             else
@@ -714,13 +714,13 @@ void initializeRobot()
     initFrontMidOffset = 500 - getTripleAverageFeedback(1);
     initFrontLeftOffset =  500 - getTripleAverageFeedback(3);
     initFrontRightOffset = 500 - getTripleAverageFeedback(2);
-    debug("Initialize sensor done: ");
-    debug(initFrontMidOffset);
-    debug(", ");
-    debug(initFrontLeftOffset);
-    debug(", ");
-    debug(initFrontRightOffset);
-    debugNL();
+    Serial.print("Initialize sensor done: ");
+    Serial.print(initFrontMidOffset);
+    Serial.print(", ");
+    Serial.print(initFrontLeftOffset);
+    Serial.print(", ");
+    Serial.print(initFrontRightOffset);
+    Serial.println();
 }
 
 void debug(String message)
