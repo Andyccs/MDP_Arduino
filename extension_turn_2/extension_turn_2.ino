@@ -65,6 +65,9 @@ const int MOVE_FORWARD_LEFT_RIGHT_OFFSET = 8;
 //set it to false for production
 const bool DEBUG = true;
 
+//below are numbers to be set during initialization
+int initLeftOffset = 0;
+
 //pin number for motor
 //do not change
 const int motor1_a = 4;
@@ -176,6 +179,11 @@ void loop(){
     else if(command == 'F')
     {
        feedBackFunction();
+    }
+    else if(command == 'I')
+    {
+        // Initialize
+        feedBackFunction();
     }
     
 }
@@ -631,7 +639,7 @@ float getFrontSensor()
 
 float getFrontLeftSensor()
 {
-    return getAverageFeedback(3);
+    return getAverageFeedback(3) + initLeftOffset;
 }
 
 float getFrontRightSensor()
