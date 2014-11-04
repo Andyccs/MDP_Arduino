@@ -38,23 +38,18 @@ const double errorLeft = 1.010;
 //do not change the value
 const int pidLoopTime = 100;  
 
-//this is the optimal sensor value that 
-//we want when we allign distance
-//change it to the reading of front sensor
-//when the robot is in good distance
+//do not change it, offset has been set.
 const int GOOD_DISTANCE = 500;
-                                                                                                                            
-
 
 //this number will be used to see when to 
 //slow down allign distance from far to near
 //can change, should be abit larger than GOOD_DISTANCE
-const int FRONT_TOLERANCE = 529;
+const int FRONT_TOLERANCE = 526;
 
 //this number will be used to see when to 
 //slow down allign distance from near to far
 //can change, should be abit smaller than GOOD_DISTANCE
-const int BACK_TOLERANCE = 476;
+const int BACK_TOLERANCE = 484;
 
 //this constant will be used when the robot move forward
 //changing this can make the robot move straight
@@ -67,6 +62,16 @@ const int MOVE_FORWARD_LEFT_RIGHT_OFFSET = 10;
 //set it to false for production
 const bool DEBUG = true;
 
+//below are numbers to be set during initialization
+//sensor raw read data offset
+//sensor raw data will be set to 500
+int initFrontLeftOffset = 0;
+int initFrontMidOffset = 0;
+int initFrontRightOffset = 0;
+//moveforward multiplier
+int initMultiplier[9] = {500,500,500,500,500, 500,500,500,500};
+
+
 //pin number for motor
 //do not change
 const int motor1_a = 4;
@@ -75,7 +80,7 @@ const int motor2_a = 8;
 const int motor2_b = 7;
 
 //Serial Read String Function
-char Comp(){
+char serialRead(){
     if(Serial.available()>0){
         return Serial.read();
     }else{
@@ -92,10 +97,10 @@ void setup()
 }
 
 void loop(){
-    char command = Comp();
+    char command = serialRead();
     if(command == '1')
     {
-        moveForward2(1);        
+        moveForward(1);        
         IRFunction();
     }
     else if(command == '2')
@@ -179,6 +184,33 @@ void loop(){
     {
        feedBackFunction();
     }
+    else if(command == 'I')
+    {
+        // Initialize
+        initializeRobot();
+    }
+    else if(command == 'S')
+    {
+        // set multiplier
+        char distance = serialRead();
+        if (distance=='\0')
+        {
+            return;
+        }
+        distance -= '0';
+        char tmp;
+        int val = 0;
+        while((tmp=serialRead()) && (tmp>='0') && (tmp<='9'))
+        {
+            val*=10;
+            val+=tmp-'0';
+        }
+        debug("Try to set distance multiplier ");
+        debug(distance);
+        debug(" to ");
+        debug(val);
+        debugNL();
+    }
     
 }
 
@@ -186,20 +218,7 @@ int moveForward(int distance){
     we.getCountsAndResetM1();
     we.getCountsAndResetM2();
 
-    int multiplier;
-    switch(distance){
-        case 1: multiplier = 600; break;
-        case 2: multiplier = 600; break;
-        case 3: multiplier = 600; break;
-        case 4: multiplier = 600; break;
-        case 5: multiplier = 600; break;
-        case 6: multiplier = 600; break;
-        case 7: multiplier = 600; break;
-        case 8: multiplier = 600; break;
-        case 9: multiplier = 600; break;
-        default: multiplier = 600; break;
-    }
-
+    int multiplier = initMultiplier[distance-1];
     int target_Distance = multiplier * distance;
 
     int left_offset=285;    //fully charged 
@@ -417,9 +436,8 @@ void calibrate()
     int sensor1 = 0;
     int sensor2 = 0;
     int error = 0;
-    int leftOffset = 28; //14 when full battery
 
-    sensor1 = getFrontLeftSensor()+leftOffset;
+    sensor1 = getFrontLeftSensor();
     sensor2 = getFrontRightSensor();
 
     debug("FrontLeftSensor: ");
@@ -449,7 +467,7 @@ void calibrate()
             debugNL("Move right");
             moveLeft();
         }
-        sensor1 = getFrontLeftSensor()+leftOffset;
+        sensor1 = getFrontLeftSensor();
         sensor2 = getFrontRightSensor();
 
     }
@@ -609,20 +627,29 @@ int getAverageFeedback(int pin){
     //sort
     return average;
 }
+
+int getTripleAverageFeedback(int pin){
+    int sum = 0;
+    for (int i = 0; i < 10; i++) {
+        sum += getAverageFeedback(pin);
+    }
+    return sum/10;
+}
+
 //utility function
 float getFrontSensor()
 {
-    return getAverageFeedback(1);
+    return getAverageFeedback(1) + initFrontMidOffset;
 }
 
 float getFrontLeftSensor()
 {
-    return getAverageFeedback(3);
+    return getAverageFeedback(3) + initFrontLeftOffset;
 }
 
 float getFrontRightSensor()
 {
-    return getAverageFeedback(2);
+    return getAverageFeedback(2) + initFrontRightOffset;
 }
 
 float getLeftSensor()
@@ -645,6 +672,22 @@ void feedBackFunction(){
     debug(getLeftSensor());
     debug(", ");
     debug(getRightSensor());
+    debugNL();
+}
+
+void initializeRobot()
+{
+    debug("Start initializing sensor");
+    debugNL();
+    initFrontMidOffset = 500 - getTripleAverageFeedback(1);
+    initFrontLeftOffset =  500 - getTripleAverageFeedback(3);
+    initFrontRightOffset = 500 - getTripleAverageFeedback(2);
+    debug("Initialize sensor done: ");
+    debug(initFrontMidOffset);
+    debug(", ");
+    debug(initFrontLeftOffset);
+    debug(", ");
+    debug(initFrontRightOffset);
     debugNL();
 }
 
