@@ -26,13 +26,13 @@ const double turn1Count = turn90Count/90;
 //the rpm when turn right
 //change to higher value for more rotation
 //change to lower value for less rotation
-const double errorRight = 1.060;
+double errorRight = 1.0; // 1060
 
 //this value can be used to increase or decrease 
 //the rpm when turn left
 //change to higher value for more rotation
 //change to lower value for less rotation
-const double errorLeft = 1.010;
+double errorLeft = 1.0; // 0999
 
 //Determines how often the PID algorithm evaluates. The default is 200mS.
 //do not change the value
@@ -70,6 +70,7 @@ int initFrontMidOffset = 0;
 int initFrontRightOffset = 0;
 //moveforward multiplier
 int initMultiplier[9] = {500,500,500,500,500, 500,500,500,500};
+int initForwardLeftOffset = 0;
 
 
 //pin number for motor
@@ -114,17 +115,34 @@ void loop(){
         {
             if (command == 'S')
             {
+                if (readVariable == 'L')
+                {
+                    errorLeft = 1.0 * readValue / 1000.0;
+                }
+                else if (readVariable == 'R')
+                {
+                    errorRight = 1.0 * readValue / 1000.0;
+                }
+                else if (readVariable == 'F')
+                {
+                    initForwardLeftOffset = readValue;
+                }
+                else
+                {
+                    initMultiplier[readVariable - '1'] = readValue;
+                }
                 // done reading
                 debug("Try to set constant ");
                 debug(readVariable);
                 debug(" to ");
                 debug(readValue);
                 debugNL();
+                readStatus = 0;
             }
             else
             {
                 readValue *= 10;
-                readValue += command = '0';
+                readValue += command - '0';
             }
         }
 
@@ -237,7 +255,7 @@ int moveForward(int distance){
 
     int left_offset=285;    //fully charged 
     if (distance == 1){
-        left_offset = 47;
+        left_offset = initForwardLeftOffset;
     }
 
     int count=0;
