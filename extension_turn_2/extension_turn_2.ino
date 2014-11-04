@@ -26,13 +26,13 @@ const double turn1Count = turn90Count/90;
 //the rpm when turn right
 //change to higher value for more rotation
 //change to lower value for less rotation
-const double errorRight = 1.058;
+const double errorRight = 1.060;
 
 //this value can be used to increase or decrease 
 //the rpm when turn left
 //change to higher value for more rotation
 //change to lower value for less rotation
-const double errorLeft = 0.99;
+const double errorLeft = 1.010;
 
 //Determines how often the PID algorithm evaluates. The default is 200mS.
 //do not change the value
@@ -42,23 +42,25 @@ const int pidLoopTime = 100;
 //we want when we allign distance
 //change it to the reading of front sensor
 //when the robot is in good distance
-const int GOOD_DISTANCE = 520;
+const int GOOD_DISTANCE = 500;
+                                                                                                                            
+
 
 //this number will be used to see when to 
 //slow down allign distance from far to near
 //can change, should be abit larger than GOOD_DISTANCE
-const int FRONT_TOLERANCE = 547;
+const int FRONT_TOLERANCE = 529;
 
 //this number will be used to see when to 
 //slow down allign distance from near to far
 //can change, should be abit smaller than GOOD_DISTANCE
-const int BACK_TOLERANCE = 494;
+const int BACK_TOLERANCE = 476;
 
 //this constant will be used when the robot move forward
 //changing this can make the robot move straight
 //plus to turn right 
 //minus to turn left
-const int MOVE_FORWARD_LEFT_RIGHT_OFFSET = 8;
+const int MOVE_FORWARD_LEFT_RIGHT_OFFSET = 10;
 
 //For debugging purpose
 //set it to true to debug
@@ -93,7 +95,7 @@ void loop(){
     char command = Comp();
     if(command == '1')
     {
-        moveForward(1);        
+        moveForward2(1);        
         IRFunction();
     }
     else if(command == '2')
@@ -157,7 +159,7 @@ void loop(){
     }
     else if(command == 'C')
     {
-        
+        adjustDistance();
         calibrate();
         adjustDistance();
         calibrate();
@@ -181,106 +183,89 @@ void loop(){
 }
 
 int moveForward(int distance){
+    we.getCountsAndResetM1();
+    we.getCountsAndResetM2();
+
     int multiplier;
     switch(distance){
-        case 1: multiplier = 500; break;
-        case 2: multiplier = 488; break;
-        case 3: multiplier = 522; break;
-        case 4: multiplier = 558; break;
-        case 5: multiplier = 558; break;
-        case 6: multiplier = 558; break;
-        case 7: multiplier = 558; break;
-        case 8: multiplier = 558; break;
-        case 9: multiplier = 558; break;
-        default: multiplier = 558; break;
+        case 1: multiplier = 600; break;
+        case 2: multiplier = 600; break;
+        case 3: multiplier = 600; break;
+        case 4: multiplier = 600; break;
+        case 5: multiplier = 600; break;
+        case 6: multiplier = 600; break;
+        case 7: multiplier = 600; break;
+        case 8: multiplier = 600; break;
+        case 9: multiplier = 600; break;
+        default: multiplier = 600; break;
     }
+
     int target_Distance = multiplier * distance;
+
+    int left_offset=285;    //fully charged 
+    if (distance == 1){
+        left_offset = 47;
+    }
 
     int count=0;
     int pwm1=300, pwm2=300; 
     int output=0;
     int LeftPosition,RightPosition;
-    
 
-    int MAX_POWER_LEFT = 300+MOVE_FORWARD_LEFT_RIGHT_OFFSET;
-    int MAX_POWER_RIGHT = 300-MOVE_FORWARD_LEFT_RIGHT_OFFSET;
-
-    we.getCountsAndResetM1();
-    we.getCountsAndResetM2();
-
-    while(1)
-    {
-        LeftPosition = we.getCountsM1();
-        RightPosition = we.getCountsM2();
+    while(1){
+        LeftPosition = we.getCountsM1();    //hardcoded
+        RightPosition = we.getCountsM2();  
 
         //Acceleration
-        if(LeftPosition <=200)
-        {
-            pwm1 = 200;
-            pwm2 = 200;
+        if(LeftPosition <=100){
+            pwm1 = 100;
+            pwm2 = 100;
         } 
-        else if(LeftPosition <=300)
-        {
+        else if(LeftPosition <=300){
             pwm1 = LeftPosition;
             pwm2 = RightPosition;
-
-            if(pwm1>MAX_POWER_LEFT){
-                pwm1 = MAX_POWER_LEFT;
-            }
-            if(pwm2>MAX_POWER_RIGHT){
-                pwm2 = MAX_POWER_RIGHT;
-            }
         } 
-        else 
-        {
-            pwm1 = MAX_POWER_LEFT;
-            pwm2 = MAX_POWER_RIGHT;
+        else {
+           pwm1 = 300;
+            pwm2 = 300;
         }   
 
-        if(LeftPosition >= target_Distance)
-        {
-            md.setBrakes(400,400);
-            delay(100);
-            md.setBrakes(0,0);
+        if(LeftPosition >= target_Distance-70){
+            brake();
             break;
         }
-        debug("LeftPosition: ");   
-        debug(LeftPosition);
-        debug(", target_Distance: ");   
-        debug(target_Distance);
+
+        if(distance == 1){
+
+            if(LeftPosition >= (target_Distance-70-200) && LeftPosition <= (target_Distance+100)){
+                pwm1 = target_Distance-70-LeftPosition+100;
+                pwm2 = target_Distance-70-LeftPosition+100;
+            }
+        }
 
         output = pidControlForward(we.getCountsM1(),we.getCountsM2());
-        
-        pwm1 = pwm1+output;
-        pwm2 = pwm2-output;
-        if(pwm1<0){
-            pwm1 = 0;
-        }
-        if(pwm2<0){
-            pwm2 = 0;
-        }
-
-        md.setSpeeds(pwm1, pwm2);
-
-        debug(" pwm1: ");   
-        debug(pwm1);
-        debug(", pwm2: ");   
-        debug(pwm2);
-        debug(", output: ");   
-        debug(output);
-        debug(", motor1_encoder: ");   
-        debug(we.getCountsM1());
-        debug(", motor2_encoder: ");   
-        debug(we.getCountsM2());
-        debugNL();
+        md.setSpeeds(pwm1+output+left_offset, pwm2-output);
     }
-  
+
 }
 
 int pidControlForward(int LeftPosition, int RightPosition){
-    float error = LeftPosition - RightPosition;
-    return error;
+    int error;
+    int prev_error;
+    float integral,derivative,output;
+    float Kp = 0.75;
+    float Kd = 1.65;
+    float Ki = 0;
+
+    error = LeftPosition - RightPosition;
+    integral += error;
+    derivative = (error - prev_error);
+    output = Kp*error + Ki * integral + Kd * derivative;
+    prev_error = error;
+
+    return output*3;
 }
+
 
 int turnLeft(int degree, int power){
     return movement((int)(turn1Count*degree*errorLeft), 250, true, false);
@@ -428,12 +413,13 @@ void IRFunction()
 
 void calibrate()
 {
-    int limit = 7;
-    int sensor1 = 0.0;
-    int sensor2 = 0.0;
-    int error = 0.0;
+    int limit = 5;
+    int sensor1 = 0;
+    int sensor2 = 0;
+    int error = 0;
+    int leftOffset = 28; //14 when full battery
 
-    sensor1 = getFrontLeftSensor();
+    sensor1 = getFrontLeftSensor()+leftOffset;
     sensor2 = getFrontRightSensor();
 
     debug("FrontLeftSensor: ");
@@ -463,7 +449,7 @@ void calibrate()
             debugNL("Move right");
             moveLeft();
         }
-        sensor1 = getFrontLeftSensor();
+        sensor1 = getFrontLeftSensor()+leftOffset;
         sensor2 = getFrontRightSensor();
 
     }
@@ -559,7 +545,7 @@ void moveAbit(bool forward,bool less)
 void moveLeft()
 {
     int motorPower = 100;
-    int revolutionNeeded = 20;
+    int revolutionNeeded = 5;
     int m1Power = -motorPower;
     int m2Power = motorPower;
     resetEncoderCount();
@@ -575,7 +561,7 @@ void moveLeft()
 void moveRight()
 {
     int motorPower = 100;
-    int revolutionNeeded = 20;
+    int revolutionNeeded = 5;
     int m1Power = motorPower;
     int m2Power = -motorPower;
     resetEncoderCount();
@@ -699,5 +685,3 @@ void debugNL(float message){
     if(DEBUG)
         Serial.println(message);
 }
-
-
