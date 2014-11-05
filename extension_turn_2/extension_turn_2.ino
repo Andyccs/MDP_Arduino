@@ -264,7 +264,7 @@ int moveForward(int distance){
     int target_Distance = multiplier * distance;
 
     int left_offset = initForwardLeftOffset[distance];
-    
+
     int count=0;
     int pwm1=300, pwm2=300; 
     int output=0;
@@ -714,6 +714,15 @@ void feedBackFunction(){
     debugNL();
 }
 
+float getAverageIR(int i, int j)
+{
+    float sum = 0.0;
+    for (int i = 0; i < 10; i ++) {
+        sum += getIR(i, j);
+    }
+    return sum / 10.0;
+}
+
 void initializeRobot()
 {
     debug("Start initializing sensor");
@@ -724,13 +733,13 @@ void initializeRobot()
 
 
     //front right sensor
-    initIRFrontRight = 7.0 - getIR(2,1);
+    initIRFrontRight = 7.0 - getAverageIR(2,1);
     
     //front left sensor
-    initIRFrontLeft = 7.0 - getIR(3,2);
+    initIRFrontLeft = 7.0 - getAverageIR(3,2);
 
     // float sensor5 = getFrontSensor();
-    initIRFront = 7.0 - getIR(1,5);
+    initIRFront = 7.0 - getAverageIR(1,5);
 
 
     Serial.print("Initialize sensor done: ");
