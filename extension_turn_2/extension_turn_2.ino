@@ -98,7 +98,7 @@ void setup()
     md.init();  
     we.init(11,13,3,5);
   
-    Serial.begin(115200);
+    Serial.begin(9600);
 }
 
 int readStatus = 0;
