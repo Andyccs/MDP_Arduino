@@ -71,6 +71,10 @@ int initFrontRightOffset = 0;
 //moveforward multiplier
 int initMultiplier[9] = {500,500,500,500,500, 500,500,500,500};
 int initForwardLeftOffset = 0;
+// IR offest
+float initIRFront = 0.0;
+float initIRFrontLeft = 0.0;
+float initIRFrontRight = 0.0;
 
 
 //pin number for motor
@@ -440,10 +444,10 @@ float getIR(int irPin , int sensorNo)
 void IRFunction()
 {
     //front right sensor
-    float sensor1 = getIR(2,1);
+    float sensor1 = getIR(2,1) + initIRFrontRight;
     
     //front left sensor
-    float sensor2 = getIR(3,2);
+    float sensor2 = getIR(3,2) + initIRFrontLeft;
 
     //left sensor
     float sensor3 = getIR(4,3);
@@ -452,7 +456,7 @@ void IRFunction()
     float sensor4 = getIR(5,4);
     
     // float sensor5 = getFrontSensor();
-    float sensor5 = getIR(1,5);
+    float sensor5 = getIR(1,5) + initIRFront;
 
     Serial.print("1,");
     Serial.print(sensor5);
@@ -718,6 +722,18 @@ void initializeRobot()
     initFrontMidOffset = 500 - getTripleAverageFeedback(1);
     initFrontLeftOffset =  500 - getTripleAverageFeedback(3);
     initFrontRightOffset = 500 - getTripleAverageFeedback(2);
+
+
+    //front right sensor
+    float initIRFrontRight = 7.0 - getIR(2,1);
+    
+    //front left sensor
+    float initIRFrontLeft = 7.0 - getIR(3,2);
+
+    // float sensor5 = getFrontSensor();
+    float initIRFront = 7.0 - getIR(1,5);
+
+
     Serial.print("Initialize sensor done: ");
     Serial.print(initFrontMidOffset);
     Serial.print(", ");
