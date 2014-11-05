@@ -70,7 +70,9 @@ int initFrontMidOffset = 0;
 int initFrontRightOffset = 0;
 //moveforward multiplier
 int initMultiplier[9] = {500,500,500,500,500, 500,500,500,500};
-int initForwardLeftOffset = 0;
+// 1..9
+int initForwardLeftOffset[9] = {0,0,0,0,0, 0,0,0,0};
+// a..i
 // IR offest
 float initIRFront = 0.0;
 float initIRFrontLeft = 0.0;
@@ -127,13 +129,13 @@ void loop(){
                 {
                     errorRight = 1.0 * readValue / 1000.0;
                 }
-                else if (readVariable == 'F')
-                {
-                    initForwardLeftOffset = readValue;
-                }
-                else
+                else if (readVariable <= '9' && readVariable >= '0')
                 {
                     initMultiplier[readVariable - '1'] = readValue;
+                }
+                else if (readVariable <= 'i' readVariable >= 'a')
+                {
+                    initForwardLeftOffset[readVariable - 'a'] = readValue
                 }
                 if (command == 'S') {
                     // done reading
@@ -261,11 +263,8 @@ int moveForward(int distance){
     int multiplier = initMultiplier[distance-1];
     int target_Distance = multiplier * distance;
 
-    int left_offset=285;    //fully charged 
-    if (distance == 1){
-        left_offset = initForwardLeftOffset;
-    }
-
+    int left_offset = initForwardLeftOffset[distance];
+    
     int count=0;
     int pwm1=300, pwm2=300; 
     int output=0;
@@ -725,13 +724,13 @@ void initializeRobot()
 
 
     //front right sensor
-    float initIRFrontRight = 7.0 - getIR(2,1);
+    initIRFrontRight = 7.0 - getIR(2,1);
     
     //front left sensor
-    float initIRFrontLeft = 7.0 - getIR(3,2);
+    initIRFrontLeft = 7.0 - getIR(3,2);
 
     // float sensor5 = getFrontSensor();
-    float initIRFront = 7.0 - getIR(1,5);
+    initIRFront = 7.0 - getIR(1,5);
 
 
     Serial.print("Initialize sensor done: ");
