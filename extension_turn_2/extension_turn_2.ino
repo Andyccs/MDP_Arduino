@@ -113,7 +113,7 @@ void loop(){
         }
         else if (readStatus == 2)
         {
-            if (command == 'S')
+            if (command == 'S' || command == 'T')
             {
                 if (readVariable == 'L')
                 {
@@ -131,13 +131,17 @@ void loop(){
                 {
                     initMultiplier[readVariable - '1'] = readValue;
                 }
-                // done reading
-                Serial.print("Try to set constant ");
-                Serial.print(readVariable);
-                Serial.print(" to ");
-                Serial.print(readValue);
-                Serial.println();
-                readStatus = 0;
+                if (command == 'S') {
+                    // done reading
+                    Serial.print("Try to set constant ");
+                    Serial.print(readVariable);
+                    Serial.print(" to ");
+                    Serial.print(readValue);
+                    Serial.println();
+                    readStatus = 0;
+                } else {
+                    readStatus = 1;
+                }
             }
             else
             {
