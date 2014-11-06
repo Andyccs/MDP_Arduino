@@ -140,9 +140,9 @@ void loop(){
                 {
                     initMultiplier[readVariable - '1'] = readValue;
                 }
-                else if (readVariable <= 'i' readVariable >= 'a')
+                else if (readVariable <= 'i' && readVariable >= 'a')
                 {
-                    initForwardLeftOffset[readVariable - 'a'] = readValue
+                    initForwardLeftOffset[readVariable - 'a'] = readValue;
                 }
                 if (command == 'S') {
                     // done reading
