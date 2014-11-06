@@ -111,14 +111,21 @@ void loop(){
     char command = serialRead();
     if (command == '\0') return;
     if (readStatus > 0) {
+        //first state of the setting
+        //Reading what to setting
         if (readStatus == 1)
         {
             readVariable = command;
             readStatus = 2;
             readValue = 0;
         }
+
+        //second state of the setting
+        //read in the value and make action
         else if (readStatus == 2)
         {
+            //if we reach the end of setting command
+            //do appropriate action
             if (command == 'S' || command == 'T')
             {
                 if (readVariable == 'L')
@@ -149,6 +156,7 @@ void loop(){
                     readStatus = 1;
                 }
             }
+            //we continue reading the value to be set
             else
             {
                 readValue *= 10;
@@ -251,6 +259,7 @@ void loop(){
     }
     else if(command == 'S')
     {
+        //start reading setting information
         readStatus = 1;
     }
     
