@@ -272,7 +272,7 @@ int moveForward(int distance){
     int multiplier = initMultiplier[distance-1];
     int target_Distance = multiplier * distance;
 
-    int left_offset = initForwardLeftOffset[distance];
+    int left_offset = initForwardLeftOffset[distance-1];
 
     int count=0;
     int pwm1=300, pwm2=300; 
