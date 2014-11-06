@@ -443,8 +443,8 @@ float getIR(int irPin , int sensorNo)
 
     for(i=0; i<numSample; i++)
     {
-        //arrdistance[i] = 108553.481 * (float)pow((float)(analogRead(irPin) / 1023.0 * 5000), -1.2);
-        arrdistance[i] = 108553.481 * (float)pow((float)(getAverageFeedback(irPin) / 1023.0 * 5000), -1.2);
+        arrdistance[i] = 108553.481 * (float)pow((float)(analogRead(irPin) / 1023.0 * 5000), -1.2);
+        //arrdistance[i] = 108553.481 * (float)pow((float)(getAverageFeedback(irPin) / 1023.0 * 5000), -1.2);
     }
 
     mydistance = mode(arrdistance,numSample);
