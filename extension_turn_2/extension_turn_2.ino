@@ -748,6 +748,12 @@ void initializeRobot()
     Serial.print(initFrontLeftOffset);
     Serial.print(", ");
     Serial.print(initFrontRightOffset);
+    Serial.print(" IR return offset: ");
+    Serial.print(initIRFront);
+    Serial.print(", ");
+    Serial.print(initIRFrontLeft);
+    Serial.print(", ");
+    Serial.print(initIRFrontRight);
     Serial.println();
 }
 
