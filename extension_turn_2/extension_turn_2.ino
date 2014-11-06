@@ -440,7 +440,9 @@ float getIR(int irPin , int sensorNo)
 
     for(i=0; i<numSample; i++)
     {
-        arrdistance[i] = 108553.481 * (float)pow((float)(analogRead(irPin) / 1023.0 * 5000), -1.2);
+        getAverageFeedback
+        //arrdistance[i] = 108553.481 * (float)pow((float)(analogRead(irPin) / 1023.0 * 5000), -1.2);
+        arrdistance[i] = 108553.481 * (float)pow((float)(getAverageFeedback(irPin) / 1023.0 * 5000), -1.2);
     }
 
     mydistance = mode(arrdistance,numSample);
@@ -546,7 +548,7 @@ int adjustDistance()
         debug(sensor3);
         debugNL();
     }
-    for(int j=0; j < 100; j++)
+    for(int j=0; j < 200; j++)
     {
         debug("frontSensorFeedback: ");
         debug(sensor3);
@@ -723,11 +725,11 @@ void feedBackFunction(){
     debugNL();
 }
 
-float getAverageIR(int i, int j)
+float getAverageIR(int a, int b)
 {
     float sum = 0.0;
     for (int i = 0; i < 10; i ++) {
-        sum += getIR(i, j);
+        sum += getIR(a, b);
     }
     return sum / 10.0;
 }
