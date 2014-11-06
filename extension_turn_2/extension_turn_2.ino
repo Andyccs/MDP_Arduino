@@ -273,6 +273,9 @@ int moveForward(int distance){
     int target_Distance = multiplier * distance;
 
     int left_offset = initForwardLeftOffset[distance-1];
+    debug("left_offset: ");
+    debug(left_offset);
+    debugNL();
 
     int count=0;
     int pwm1=300, pwm2=300; 
@@ -330,7 +333,7 @@ int pidControlForward(int LeftPosition, int RightPosition){
     output = Kp*error + Ki * integral + Kd * derivative;
     prev_error = error;
 
-    return output*3;
+    return output;
 }
 
 
